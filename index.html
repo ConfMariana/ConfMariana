@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mariana</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        #typewriter {
+            position: absolute;
+            top: 50%; /* Centrar verticalmente */
+            left: 50%; /* Centrar horizontalmente */
+            transform: translate(-50%, -50%); /* Ajustar para centrar correctamente */
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 8vw; /* Tamaño de la fuente relativo al ancho de la ventana */
+            color: #0000FF; /* Azul fuerte */
+            white-space: nowrap;
+            overflow: hidden;
+            border-right: .15em solid #0000FF; /* Cursor de parpadeo */
+            animation: typing 4s steps(30, end), blink-caret .75s step-end infinite;
+            text-align: center; /* Centrar el texto dentro del div */
+            max-width: 90vw; /* Limitar el ancho máximo en dispositivos móviles */
+        }
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        @keyframes blink-caret {
+            from, to { border-color: transparent; }
+            50% { border-color: #0000FF; }
+        }
+        /* Consultas de medios para ajustar el tamaño del texto en pantallas más pequeñas */
+        @media (max-width: 600px) {
+            #typewriter {
+                font-size: 10vw; /* Tamaño de la fuente en pantallas pequeñas */
+            }
+        }
+    </style>
+    <!-- Incluir la biblioteca de Three.js desde un CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
+    <!-- Incluir jQuery desde un CDN -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <!-- Contenedor para el texto animado -->
+    <div id="typewriter"></div>
+
+    <script>
+        // Crear la escena
+        const scene = new THREE.Scene();
+
+        // Crear la cámara
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 5;
+
+        // Crear el renderizador
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0xe0f7fa, 1);  // Fondo azul claro
+        renderer.shadowMap.enabled = true;  // Habilitar sombras
+        document.body.appendChild(renderer.domElement);
+
+        // Crear la forma del corazón
+        const heartShape = new THREE.Shape();
+        heartShape.moveTo(0, 0);
+        heartShape.bezierCurveTo(2, 2, 4, 0, 0, -4);
+        heartShape.bezierCurveTo(-4, 0, -2, 2, 0, 0);
+
+        // Configurar la extrusión de la forma
+        const extrudeSettings = {
+            steps: 2,
+            depth: 1,
+            bevelEnabled: true,
+            bevelThickness: 0.3,
+            bevelSize: 0.3,
+            bevelOffset: 0,
+            bevelSegments: 8,
+        };
+
+        // Crear la geometría 3D del corazón extruido
+        const geometry = new THREE.ExtrudeGeometry(heartShape, extrudeSettings);
+
+        // Crear el material para el corazón con sombreado
+        const material = new THREE.MeshStandardMaterial({ color: 0xffffff });  // Material con sombreado
+
+        // Crear el mesh y añadirlo a la escena
+        const heartMesh = new THREE.Mesh(geometry, material);
+        heartMesh.scale.set(0.5, 0.5, 0.5);  // Escalar el corazón a la mitad de su tamaño
+        heartMesh.castShadow = true;  // Habilitar la proyección de sombras
+        scene.add(heartMesh);
+
+        // Añadir una luz direccional
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 5, 5);  // Posicionar la luz en una esquina
+        directionalLight.castShadow = true;  // Habilitar sombras en la luz
+        scene.add(directionalLight);
+
+        // Configurar el mapa de sombras para mayor detalle
+        directionalLight.shadow.mapSize.width = 1024;
+        directionalLight.shadow.mapSize.height = 1024;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 50;
+
+        // Añadir luz ambiental para un poco de iluminación global
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.4);  // Luz ambiental tenue
+        scene.add(ambientLight);
+
+        // Crear un plano debajo del corazón para proyectar la sombra
+        const planeGeometry = new THREE.PlaneGeometry(10, 10);
+        const planeMaterial = new THREE.ShadowMaterial({ color: 0x000000, opacity: 0.3 });  // Material para sombra suave
+        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+        plane.rotation.x = -Math.PI / 2;  // Rotar el plano para que esté horizontal
+        plane.position.y = -2;  // Colocar el plano debajo del corazón
+        plane.receiveShadow = true;  // Habilitar la recepción de sombras
+        scene.add(plane);
+
+        // Función de animación
+        function animate() {
+            requestAnimationFrame(animate);
+            heartMesh.rotation.y += 0.01;  // Gira sobre el eje Y
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Ajustar la vista cuando se cambia el tamaño de la ventana
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        });
+
+        // Función para la animación de texto
+        $(document).ready(function() {
+            const texts = [
+                "Mariana",
+                "¿Quieres ser",
+                "mi novia?"
+            ];
+            let currentTextIndex = 0;
+            let index = 0;
+            const typingSpeed = 100; // Velocidad de escritura en milisegundos
+            const erasingSpeed = 50; // Velocidad de borrado en milisegundos
+            const pauseBetweenTexts = 1000; // Pausa entre textos en milisegundos
+
+            function typeText(text, callback) {
+                if (index < text.length) {
+                    $('#typewriter').text(text.substring(0, index + 1));
+                    index++;
+                    setTimeout(() => typeText(text, callback), typingSpeed);
+                } else {
+                    setTimeout(callback, pauseBetweenTexts);
+                }
+            }
+
+            function eraseText(callback) {
+                if (index > 0) {
+                    $('#typewriter').text(texts[currentTextIndex].substring(0, index - 1));
+                    index--;
+                    setTimeout(() => eraseText(callback), erasingSpeed);
+                } else {
+                    currentTextIndex++;
+                    if (currentTextIndex < texts.length) {
+                        setTimeout(() => typeText(texts[currentTextIndex], () => eraseText(startTypingAnimation)), pauseBetweenTexts);
+                    }
+                }
+            }
+
+            function startTypingAnimation() {
+                typeText(texts[currentTextIndex], () => eraseText(startTypingAnimation));
+            }
+
+            startTypingAnimation(); // Inicia la animación en bucle
+        });
+    </script>
+</body>
+</html>
